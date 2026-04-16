@@ -1,15 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Monitoring SE EDP</title>
+
+  <!-- BOOTSTRAP -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+  <style>
+    body {
+      background: #f5f7fa;
+    }
+    .card {
+      border-radius: 12px;
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="container py-4">
+
+  <h3 class="mb-4">📊 Monitoring SE EDP SBY 🔥</h3>
+
+  <!-- INPUT -->
+  <div class="card p-3 mb-4 shadow-sm">
+    <div class="row g-2">
+      <div class="col-md-4">
+        <input id="kdtk" class="form-control" placeholder="Masukkan KDTK">
+      </div>
+      <div class="col-md-2">
+        <button onclick="check()" class="btn btn-success w-100">Check</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- RESULT -->
+  <div id="result" class="row g-3"></div>
+
+</div>
+
 <script>
 const BASE = "https://cold-haze-26b9.muhammadrooby.workers.dev";
 
+// =======================
+// HELPER
+// =======================
 function toNumber(v){
   if(!v) return 0;
+
   const str = String(v).toLowerCase();
   const match = str.match(/[\d.]+/);
   if(!match) return 0;
 
   let num = parseFloat(match[0]);
 
-  // convert Gbps → Mbps
+  // 🔥 FIX UNIT
   if (str.includes("gb")) num *= 1000;
 
   return num;
@@ -25,17 +70,32 @@ function badge(ok){
     : '<span class="badge bg-danger">NOK</span>';
 }
 
+// =======================
+// CHECK
+// =======================
 async function check() {
-  const kdtk = document.getElementById("kdtk").value;
+  const kdtk = document.getElementById("kdtk").value.trim();
   const result = document.getElementById("result");
 
-  result.innerHTML = "Loading...";
+  if (!kdtk) {
+    result.innerHTML = `<div class="alert alert-warning">Masukkan KDTK dulu</div>`;
+    return;
+  }
+
+  result.innerHTML = `<div class="text-center">Loading...</div>`;
 
   try {
     const res = await fetch(`${BASE}/check?kdtk=${kdtk}`);
     const data = await res.json();
 
-    if (!Array.isArray(data) || data.length === 0) {
+    console.log("DATA:", data);
+
+    if (!Array.isArray(data)) {
+      result.innerHTML = `<div class="alert alert-danger">Data tidak valid</div>`;
+      return;
+    }
+
+    if (data.length === 0) {
       result.innerHTML = `<div class="alert alert-danger">KDTK tidak ditemukan</div>`;
       return;
     }
@@ -43,63 +103,72 @@ async function check() {
     let html = "";
 
     data.forEach((d, i) => {
-      const station = `Station ${i+1}`;
+      try {
+        const station = `Station ${i+1}`;
 
-      const lan = toNumber(d.lan_speed);
-      const suhu = toNumber(d.suhu);
-      const boot = toNumber(d.boot_time);
-      const bsod = toStr(d.status_bsod);
-      const ups = toStr(d.ups_status);
+        const lan = toNumber(d.lan_speed);
+        const suhu = toNumber(d.suhu);
+        const boot = toNumber(d.boot_time);
+        const bsod = toStr(d.status_bsod);
+        const ups = toStr(d.ups_status);
 
-      const bca_on = toNumber(d.edc_bca_on);
-      const bca_off = toNumber(d.edc_bca_off);
+        const bca_on = toNumber(d.edc_bca_on);
+        const bca_off = toNumber(d.edc_bca_off);
 
-      const mandiri_on = toNumber(d.edc_mandiri_on);
-      const mandiri_off = toNumber(d.edc_mandiri_off);
+        const mandiri_on = toNumber(d.edc_mandiri_on);
+        const mandiri_off = toNumber(d.edc_mandiri_off);
 
-      const mti_on = toNumber(d.edc_mti_on);
-      const mti_off = toNumber(d.edc_mti_off);
+        const mti_on = toNumber(d.edc_mti_on);
+        const mti_off = toNumber(d.edc_mti_off);
 
-      const m_on = mandiri_on + mti_on;
-      const m_off = mandiri_off + mti_off;
+        const m_on = mandiri_on + mti_on;
+        const m_off = mandiri_off + mti_off;
 
-      // ======================
-      // 11 PARAMETER FINAL
-      // ======================
-      const rules = [
-        { name: "LAN", ok: lan >= 1000 },
-        { name: "MYSQL", ok: boot < 2 },
-        { name: "CPU", ok: suhu < 80 },
-        { name: "BOOT", ok: boot < 4 },
-        { name: "BSOD", ok: !bsod.includes("nok") },
-        { name: "UPS", ok: ups.includes("terpasang") || ups.includes("ok") },
-        { name: "EDC BCA", ok: bca_on > bca_off },
-        { name: "MANDIRI", ok: mandiri_on > mandiri_off },
-        { name: "MTI", ok: mti_on > mti_off },
-        { name: "EDC TOTAL", ok: m_on > m_off },
-        { name: "DATA VALID", ok: lan > 0 }
-      ];
+        // ======================
+        // 11 PARAMETER
+        // ======================
+        const rules = [
+          { name: "LAN", ok: lan >= 1000 },
+          { name: "MYSQL", ok: boot < 2 },
+          { name: "CPU", ok: suhu < 80 },
+          { name: "BOOT", ok: boot < 4 },
+          { name: "BSOD", ok: !bsod.includes("nok") && !bsod.includes("error") },
+          { name: "UPS", ok: ups.includes("terpasang") || ups.includes("ok") },
+          { name: "EDC BCA", ok: bca_on > bca_off },
+          { name: "MANDIRI", ok: mandiri_on > mandiri_off },
+          { name: "MTI", ok: mti_on > mti_off },
+          { name: "EDC TOTAL", ok: m_on > m_off },
+          { name: "DATA VALID", ok: lan > 0 }
+        ];
 
-      html += `
-        <div class="col-md-4">
-          <div class="card shadow-sm mb-3">
-            <div class="card-body">
-              <h5>🖥️ ${station}</h5>
-              <ul class="list-unstyled mb-0">
-                ${rules.map(r => `
-                  <li>${r.name}: ${badge(r.ok)}</li>
-                `).join("")}
-              </ul>
+        html += `
+          <div class="col-md-4">
+            <div class="card shadow-sm">
+              <div class="card-body">
+                <h5>🖥️ ${station}</h5>
+                <ul class="list-unstyled mb-0">
+                  ${rules.map(r => `
+                    <li>${r.name}: ${badge(r.ok)}</li>
+                  `).join("")}
+                </ul>
+              </div>
             </div>
           </div>
-        </div>
-      `;
+        `;
+
+      } catch (err) {
+        console.error("Error row:", err);
+      }
     });
 
     result.innerHTML = html;
 
   } catch (e) {
-    result.innerHTML = `<div class="alert alert-danger">${e.message}</div>`;
+    console.error(e);
+    result.innerHTML = `<div class="alert alert-danger">ERROR: ${e.message}</div>`;
   }
 }
 </script>
+
+</body>
+</html>
