@@ -1,33 +1,48 @@
-export default {
-  async fetch(request) {
-    const url = new URL(request.url);
+// =======================
+// CHECK (USER)
+// =======================
+async function check(){
+  const kdtk = document.getElementById('kdtk').value;
 
-    // CORS headers
-    const headers = {
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-      "Access-Control-Allow-Headers": "*",
-      "Content-Type": "application/json"
-    };
+  const res = await fetch('https://cold-haze-26b9.muhammadrooby.workers.dev/check?kdtk=' + kdtk);
+  const data = await res.json();
 
-    // Handle preflight (penting)
-    if (request.method === "OPTIONS") {
-      return new Response(null, { headers });
-    }
+  let output = "";
 
-    if (url.pathname === "/upload" && request.method === "POST") {
-      return new Response(JSON.stringify({ status: "ok" }), { headers });
-    }
-
-    if (url.pathname === "/check") {
-      const kdtk = url.searchParams.get("kdtk");
-
-      return new Response(JSON.stringify({
-        kdtk,
-        issues: []
-      }), { headers });
-    }
-
-    return new Response("OK", { headers });
+  if(data.issues.length === 0){
+    output = "Semua kondisi normal";
+  } else {
+    output = "Masalah ditemukan:\n";
+    data.issues.forEach(i => {
+      output += "- " + i + "\n";
+    });
   }
-};
+
+  document.getElementById('result').textContent = output;
+}
+
+
+// =======================
+// UPLOAD (ADMIN)
+// =======================
+async function upload(){
+  const fileInput = document.getElementById('file');
+  const file = fileInput.files[0];
+
+  if(!file){
+    alert("Pilih file dulu");
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const res = await fetch('https://cold-haze-26b9.muhammadrooby.workers.dev/upload', {
+    method: 'POST',
+    body: formData
+  });
+
+  const data = await res.json();
+
+  alert("Upload berhasil");
+}
