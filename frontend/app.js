@@ -1,32 +1,33 @@
-async function upload(){
-  const file = document.getElementById('file').files[0];
-  const form = new FormData();
-  form.append('file', file);
+export default {
+  async fetch(request) {
+    const url = new URL(request.url);
 
-  await fetch('https://cold-haze-26b9.muhammadrooby.workers.dev/upload',{method:'POST',body:form});
-  alert('Uploaded');
-}
+    // CORS headers
+    const headers = {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+      "Access-Control-Allow-Headers": "*",
+      "Content-Type": "application/json"
+    };
 
-async function check(){
-  const kdtk = document.getElementById('kdtk').value;
+    // Handle preflight (penting)
+    if (request.method === "OPTIONS") {
+      return new Response(null, { headers });
+    }
 
-  const res = await fetch('https://cold-haze-26b9.muhammadrooby.workers.dev/check?kdtk=' + kdtk);
-  const data = await res.json();
+    if (url.pathname === "/upload" && request.method === "POST") {
+      return new Response(JSON.stringify({ status: "ok" }), { headers });
+    }
 
-  console.log(data);
+    if (url.pathname === "/check") {
+      const kdtk = url.searchParams.get("kdtk");
 
-  let output = "";
+      return new Response(JSON.stringify({
+        kdtk,
+        issues: []
+      }), { headers });
+    }
 
-  if(!data || !data.issues){
-    output = "Error ambil data";
-  } else if(data.issues.length === 0){
-    output = "Semua kondisi normal";
-  } else {
-    output = "Masalah ditemukan:\n";
-    data.issues.forEach(i => {
-      output += "- " + i + "\n";
-    });
+    return new Response("OK", { headers });
   }
-
-  document.getElementById('result').textContent = output;
-}
+};
