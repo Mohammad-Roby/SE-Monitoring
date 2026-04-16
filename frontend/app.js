@@ -16,66 +16,58 @@ async function check() {
       return;
     }
 
-    let issues = [];
+    const total = data.length;
 
-    data.forEach(d => {
-      const dev = d.device_id || "-";
+    const count = (fn) => data.filter(fn).length;
+    const percent = (ok) => ((ok / total) * 100).toFixed(0);
 
-      // 1 LAN
-      if (d.lan_speed < 1000) {
-        issues.push(`LAN <1000 (${d.lan_speed}) - ${dev}`);
-      }
+    let report = [];
 
-      // 2 MYSQL
-      if (d.boot_time >= 2) {
-        issues.push(`MYSQL lambat (${d.boot_time}) - ${dev}`);
-      }
+    // 1 LAN
+    let ok_lan = count(d => d.lan_speed >= 1000);
+    report.push(`LAN OK: ${percent(ok_lan)}%`);
 
-      // 3 CPU
-      if (d.suhu >= 80) {
-        issues.push(`CPU panas (${d.suhu}) - ${dev}`);
-      }
+    // 2 MYSQL
+    let ok_mysql = count(d => d.boot_time < 2);
+    report.push(`MYSQL OK: ${percent(ok_mysql)}%`);
 
-      // 4 BOOT
-      if (d.boot_time >= 4) {
-        issues.push(`Boot lama (${d.boot_time}) - ${dev}`);
-      }
+    // 3 CPU
+    let ok_cpu = count(d => d.suhu < 80);
+    report.push(`CPU OK: ${percent(ok_cpu)}%`);
 
-      // 5 BSOD
-      if (String(d.status_bsod).toLowerCase().includes("nok")) {
-        issues.push(`BSOD bermasalah - ${dev}`);
-      }
+    // 4 BOOT
+    let ok_boot = count(d => d.boot_time < 4);
+    report.push(`BOOT OK: ${percent(ok_boot)}%`);
 
-      // 6 UPS
-      if (!String(d.ups_status).toLowerCase().includes("terpasang")) {
-        issues.push(`UPS tidak OK - ${dev}`);
-      }
+    // 5 BSOD
+    let ok_bsod = count(d => !String(d.status_bsod).toLowerCase().includes("nok"));
+    report.push(`BSOD OK: ${percent(ok_bsod)}%`);
 
-      // 7 BCA
-      if (d.edc_bca_on <= d.edc_bca_off) {
-        issues.push(`EDC BCA OFF - ${dev}`);
-      }
+    // 6 UPS
+    let validUPS = data.filter(d => d.ups_status !== "-");
+    let ok_ups = validUPS.filter(d =>
+      String(d.ups_status).toLowerCase().includes("terpasang")
+    ).length;
 
-      // 8 Mandiri + MTI
-      const m_on = d.edc_mandiri_on + d.edc_mti_on;
-      const m_off = d.edc_mandiri_off + d.edc_mti_off;
+    report.push(`UPS OK: ${validUPS.length ? ((ok_ups / validUPS.length) * 100).toFixed(0) : 0}%`);
 
-      if (m_on <= m_off) {
-        issues.push(`EDC Mandiri/MTI OFF - ${dev}`);
-      }
-    });
+    // 7 BCA
+    let ok_bca = count(d => d.edc_bca_on > d.edc_bca_off);
+    report.push(`EDC BCA OK: ${percent(ok_bca)}%`);
 
-    if (issues.length === 0) {
-      result.innerText = "✅ Semua kondisi normal";
-    } else {
-      result.innerText = "❌ Masalah ditemukan:\n\n" + issues.join("\n");
-    }
+    // 8 Mandiri + MTI
+    let ok_m = count(d =>
+      (d.edc_mandiri_on + d.edc_mti_on) >
+      (d.edc_mandiri_off + d.edc_mti_off)
+    );
+    report.push(`EDC Mandiri/MTI OK: ${percent(ok_m)}%`);
+
+    result.innerText = "📊 HASIL MONITORING:\n\n" + report.join("\n");
 
   } catch (e) {
     result.innerText = "❌ Error: " + e.message;
   }
 }
-
 // =======================
 // UPLOAD (ADMIN)
 // =======================
