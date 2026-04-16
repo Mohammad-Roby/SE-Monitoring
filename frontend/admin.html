@@ -1,7 +1,11 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Admin Upload</title>
+  <title>Monitoring SE EDP SBY 🔥</title>
+
+  <!-- 🔥 XLSX LIBRARY -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+
   <style>
     body { font-family: Arial; padding:20px; }
     button { padding:8px 16px; }
@@ -10,9 +14,9 @@
 </head>
 <body>
 
-<h2>Upload CSV Monitoring</h2>
+<h2>Upload Monitoring SE EDP SBY 🔥 (CSV / XLSX)</h2>
 
-<input type="file" id="file">
+<input type="file" id="file" accept=".csv,.xlsx">
 <button onclick="uploadFile()">Upload</button>
 
 <pre id="status"></pre>
@@ -29,20 +33,58 @@ async function uploadFile() {
     return;
   }
 
-  const formData = new FormData();
-  formData.append("file", fileInput.files[0]);
+  const file = fileInput.files[0];
+  status.innerText = "⏳ Processing file...";
 
-  status.innerText = "⏳ Uploading...";
+  let rows = [];
 
   try {
+
+    // ======================
+    // XLSX
+    // ======================
+    if (file.name.endsWith(".xlsx")) {
+
+      const data = await file.arrayBuffer();
+      const workbook = XLSX.read(data);
+
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      rows = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+
+    } else {
+
+      // ======================
+      // CSV
+      // ======================
+      const text = await file.text();
+
+      const lines = text.split("\n").filter(x => x.trim());
+      const header = lines[0].split(";").map(h => h.trim().toLowerCase());
+
+      rows = lines.slice(1).map(line => {
+        const cols = line.split(";");
+        let obj = {};
+        header.forEach((h, i) => obj[h] = cols[i]);
+        return obj;
+      });
+    }
+
+    status.innerText = "⏳ Uploading to server...";
+
+    // ======================
+    // KIRIM KE WORKER (JSON)
+    // ======================
     const res = await fetch(BASE + "/upload", {
       method: "POST",
-      body: formData,
-      mode: "cors"
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(rows)
     });
 
-    const text = await res.text();
-    status.innerText = "✅ " + text;
+    const result = await res.json();
+
+    status.innerText = "✅ Upload sukses\n\n" + JSON.stringify(result, null, 2);
 
   } catch (e) {
     status.innerText = "❌ ERROR: " + e.message;
