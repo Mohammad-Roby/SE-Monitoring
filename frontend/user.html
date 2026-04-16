@@ -1,11 +1,149 @@
 <!DOCTYPE html>
 <html>
-<head><title>User</title></head>
+<head>
+  <title>Monitoring KDTK</title>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4f6f9;
+      padding: 30px;
+    }
+
+    h1 {
+      margin-bottom: 20px;
+    }
+
+    .box {
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+      margin-bottom: 20px;
+    }
+
+    input {
+      padding: 10px;
+      width: 200px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+    }
+
+    button {
+      padding: 10px 15px;
+      background: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #45a049;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+      gap: 15px;
+    }
+
+    .card {
+      border-radius: 10px;
+      padding: 15px;
+      color: white;
+    }
+
+    .ok {
+      background: #2ecc71;
+    }
+
+    .bad {
+      background: #e74c3c;
+    }
+
+    .title {
+      font-weight: bold;
+      margin-bottom: 10px;
+    }
+
+    ul {
+      padding-left: 18px;
+      margin: 0;
+    }
+
+    li {
+      margin-bottom: 5px;
+    }
+  </style>
+</head>
+
 <body>
-<h2>Check KDTK</h2>
-<input id="kdtk"/>
-<button onclick="check()">Check</button>
-<pre id="result"></pre>
-<script src="app.js"></script>
+
+  <h1>📊 Monitoring KDTK</h1>
+
+  <div class="box">
+    <input id="kdtk" placeholder="Masukkan KDTK"/>
+    <button onclick="check()">Check</button>
+  </div>
+
+  <div id="result" class="grid"></div>
+
+<script>
+async function check() {
+  const kdtk = document.getElementById("kdtk").value;
+  const result = document.getElementById("result");
+
+  result.innerHTML = "Loading...";
+
+  try {
+    const res = await fetch(`https://cold-haze-26b9.muhammadrooby.workers.dev/check?kdtk=${kdtk}`);
+    const data = await res.json();
+
+    if (!Array.isArray(data) || data.length === 0) {
+      result.innerHTML = "<b>KDTK tidak ditemukan</b>";
+      return;
+    }
+
+    let html = "";
+
+    data.forEach((d, i) => {
+      const station = d.station || `Station ${i+1}`;
+      let issues = [];
+
+      if (d.lan_speed < 1000) issues.push("LAN < 1000 Mbps");
+      if (d.boot_time >= 2) issues.push("MYSQL lambat");
+      if (d.suhu >= 80) issues.push("CPU panas");
+      if (d.boot_time >= 4) issues.push("Boot lama");
+      if (String(d.status_bsod).toLowerCase().includes("nok")) issues.push("BSOD bermasalah");
+      if (!String(d.ups_status).toLowerCase().includes("terpasang")) issues.push("UPS tidak OK");
+      if (d.edc_bca_on <= d.edc_bca_off) issues.push("EDC BCA OFF");
+
+      const m_on = d.edc_mandiri_on + d.edc_mti_on;
+      const m_off = d.edc_mandiri_off + d.edc_mti_off;
+      if (m_on <= m_off) issues.push("EDC Mandiri/MTI OFF");
+
+      const statusClass = issues.length === 0 ? "ok" : "bad";
+
+      html += `
+        <div class="card ${statusClass}">
+          <div class="title">🖥️ ${station}</div>
+          ${
+            issues.length === 0
+              ? "<div>✅ Semua normal</div>"
+              : "<ul>" + issues.map(x => `<li>❌ ${x}</li>`).join("") + "</ul>"
+          }
+        </div>
+      `;
+    });
+
+    result.innerHTML = html;
+
+  } catch (e) {
+    result.innerHTML = "Error: " + e.message;
+  }
+}
+</script>
+
 </body>
 </html>
