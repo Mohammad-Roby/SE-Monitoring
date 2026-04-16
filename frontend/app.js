@@ -1,4 +1,16 @@
 // =======================
+// HELPER
+// =======================
+const toNumber = (v) => {
+  if (!v) return 0;
+  const match = String(v).match(/[\d.]+/);
+  return match ? parseFloat(match[0]) : 0;
+};
+
+const toStr = (v) => String(v || "").toLowerCase();
+
+
+// =======================
 // CHECK (USER)
 // =======================
 async function check() {
@@ -22,30 +34,67 @@ async function check() {
       const station = d.device_id || d.station || `Station ${i+1}`;
       let issues = [];
 
-      if (d.lan_speed < 1000) issues.push("LAN < 1000 Mbps");
-      if (d.boot_time >= 2) issues.push("MYSQL lambat");
-      if (d.suhu >= 80) issues.push("CPU panas");
-      if (d.boot_time >= 4) issues.push("Boot lama");
+      // 🔥 SAFE VALUE
+      const lan = toNumber(d.lan_speed);
+      const suhu = toNumber(d.suhu);
+      const boot = toNumber(d.boot_time);
+      const bsod = toStr(d.status_bsod);
+      const ups = toStr(d.ups_status);
 
-      if (String(d.status_bsod).toLowerCase().includes("nok")) {
+      const bca_on = toNumber(d.edc_bca_on);
+      const bca_off = toNumber(d.edc_bca_off);
+
+      const mandiri_on = toNumber(d.edc_mandiri_on);
+      const mandiri_off = toNumber(d.edc_mandiri_off);
+
+      const mti_on = toNumber(d.edc_mti_on);
+      const mti_off = toNumber(d.edc_mti_off);
+
+      const m_on = mandiri_on + mti_on;
+      const m_off = mandiri_off + mti_off;
+
+      // ======================
+      // RULES
+      // ======================
+
+      if (lan > 0 && lan < 1000) {
+        issues.push("LAN < 1000 Mbps");
+      }
+
+      if (boot >= 2) {
+        issues.push("MYSQL lambat");
+      }
+
+      if (suhu >= 80) {
+        issues.push("CPU panas");
+      }
+
+      if (boot >= 4) {
+        issues.push("Boot lama");
+      }
+
+      if (bsod.includes("nok") || bsod.includes("error")) {
         issues.push("BSOD bermasalah");
       }
 
-      if (!String(d.ups_status).toLowerCase().includes("terpasang")) {
+      // 🔥 FIX UPS (IMPORTANT)
+      if (!ups.includes("terpasang") && !ups.includes("ok")) {
         issues.push("UPS tidak OK");
       }
 
-      if (d.edc_bca_on <= d.edc_bca_off) {
+      // 🔥 FIX EDC BCA
+      if ((bca_on + bca_off) > 0 && bca_on <= bca_off) {
         issues.push("EDC BCA OFF");
       }
 
-      const m_on = d.edc_mandiri_on + d.edc_mti_on;
-      const m_off = d.edc_mandiri_off + d.edc_mti_off;
-
-      if (m_on <= m_off) {
+      // 🔥 FIX EDC MANDIRI + MTI
+      if ((m_on + m_off) > 0 && m_on <= m_off) {
         issues.push("EDC Mandiri/MTI OFF");
       }
 
+      // ======================
+      // OUTPUT
+      // ======================
       output += `🖥️ ${station}\n`;
 
       if (issues.length === 0) {
@@ -136,7 +185,7 @@ async function uploadFile() {
     } else {
 
       // ======================
-      // CSV (AMAN)
+      // CSV
       // ======================
       const text = await file.text();
       const parsed = parseCSV(text, ";");
