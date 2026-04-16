@@ -4,21 +4,34 @@
 async function check(){
   const kdtk = document.getElementById('kdtk').value;
 
-  const res = await fetch('https://cold-haze-26b9.muhammadrooby.workers.dev/check?kdtk=' + kdtk);
-  const data = await res.json();
+  try {
+    const res = await fetch('https://cold-haze-26b9.muhammadrooby.workers.dev/check?kdtk=' + kdtk);
+    const data = await res.json();
 
-  let output = "";
+    console.log(data);
 
-  if(data.issues.length === 0){
-    output = "Semua kondisi normal";
-  } else {
-    output = "Masalah ditemukan:\n";
-    data.issues.forEach(i => {
-      output += "- " + i + "\n";
-    });
+    let output = "";
+
+    // ❗ kalau error dari backend
+    if(data.error){
+      output = "❌ " + data.error + "\n\nContoh KDTK:\n" + (data.sample_kdtk || []).join(", ");
+    }
+    // ❗ kalau ada issues
+    else if(data.issues && data.issues.length > 0){
+      output = "Masalah ditemukan:\n\n";
+      data.issues.forEach(i => {
+        output += "- " + i + "\n";
+      });
+    }
+    else {
+      output = "Semua kondisi normal";
+    }
+
+    document.getElementById('result').textContent = output;
+
+  } catch(err){
+    document.getElementById('result').textContent = "ERROR: " + err.message;
   }
-
-  document.getElementById('result').textContent = output;
 }
 
 
