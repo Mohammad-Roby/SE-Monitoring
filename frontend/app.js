@@ -9,12 +9,15 @@ async function upload(){
 
 async function check(){
   const kdtk = document.getElementById('kdtk').value;
-  const res = await fetch('https://cold-haze-26b9.muhammadrooby.workers.dev/check?kdtk='+kdtk);
+
+  const res = await fetch('https://cold-haze-26b9.muhammadrooby.workers.dev/check?kdtk=' + kdtk);
   const data = await res.json();
 
   let output = "";
 
-  if(data.issues.length === 0){
+  if(!data || !data.issues){
+    output = "Error mengambil data";
+  } else if(data.issues.length === 0){
     output = "Semua kondisi normal";
   } else {
     output = "Masalah ditemukan:\n\n";
